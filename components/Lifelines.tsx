@@ -16,11 +16,11 @@ export default function Lifelines({
 
   if (!taglineUnlocked && !overviewUnlocked) {
     return (
-      <div className="text-center text-[#7a6a55] text-base">
+      <div className="text-center text-[#5a4d3e] text-lg">
         <p>
           Lifeline clues unlock as you guess:{" "}
-          <span className="text-[#c4922e] font-medium">Tagline at guess 4</span>,{" "}
-          <span className="text-[#c4922e] font-medium">Plot at guess 7</span>
+          <span className="text-[#c4922e] font-semibold">Tagline at guess 4</span>,{" "}
+          <span className="text-[#c4922e] font-semibold">Plot at guess 7</span>
         </p>
       </div>
     );
@@ -48,16 +48,16 @@ export default function Lifelines({
               Plot Clue
             </span>
           </div>
-          <p className="text-[#2d1b0e]/80 text-base leading-relaxed">
+          <p className="text-[#2d1b0e] text-base leading-relaxed">
             {overview || "No plot available."}
           </p>
         </div>
       )}
 
       {!overviewUnlocked && (
-        <div className="text-center text-[#7a6a55] text-base">
+        <div className="text-center text-[#5a4d3e] text-lg">
           <p>
-            <span className="text-[#c4922e] font-medium">Plot clue</span> unlocks at guess 7
+            <span className="text-[#c4922e] font-semibold">Plot clue</span> unlocks at guess 7
           </p>
         </div>
       )}

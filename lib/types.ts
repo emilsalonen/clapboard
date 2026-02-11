@@ -9,6 +9,7 @@ export interface Movie {
   overview: string;
   posterPath: string;
   voteAverage: number;
+  voteCount: number;
   oscarWins: number;
   watchProviders: Record<string, WatchProviderRegion>;
 }
@@ -25,11 +26,27 @@ export interface WatchProvider {
 
 export type FeedbackColor = "green" | "yellow" | "red";
 export type Direction = "higher" | "lower" | null;
+export type SimilarityLabel = "Hot" | "Warm" | "Cold";
+
+export interface DirectorProfile {
+  name: string;
+  genres: Set<string>;
+  actors: Set<string>;
+  regions: Set<string>;
+  medianYear: number;
+  movieCount: number;
+}
+
+export interface DirectorSimilarity {
+  score: number;
+  label: SimilarityLabel;
+  reasons: string[];
+}
 
 export interface FeedbackResult {
   movieTitle: string;
   year: { color: FeedbackColor; direction: Direction; value: number };
-  director: { color: FeedbackColor; value: string };
+  director: { color: FeedbackColor; value: string; similarity?: DirectorSimilarity };
   genres: { color: FeedbackColor; value: string[] };
   actors: { color: FeedbackColor; value: string[] };
   rating: { color: FeedbackColor; direction: Direction; value: number };
@@ -54,6 +71,16 @@ export interface DailyResponse {
   categories: string[];
 }
 
+export type HintType = "decade" | "firstLetter" | "posterCrop" | "oneActor" | "tagline";
+
+export interface RevealedHints {
+  decade?: string;
+  firstLetter?: string;
+  posterCrop?: string;
+  oneActor?: string;
+  tagline?: string;
+}
+
 export interface GameState {
   date: string;
   guesses: Array<{
@@ -66,5 +93,6 @@ export interface GameState {
     tagline?: string;
     overview?: string;
   };
+  hints?: RevealedHints;
   answer?: Movie;
 }

@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import GuessInput from "@/components/GuessInput";
 import GameBoard from "@/components/GameBoard";
 import Lifelines from "@/components/Lifelines";
+import HintShop from "@/components/HintShop";
 import ResultModal from "@/components/ResultModal";
 import AdBanner from "@/components/AdBanner";
-import type { GameState, GuessResponse } from "@/lib/types";
+import type { GameState, GuessResponse, HintType } from "@/lib/types";
 
 const MAX_GUESSES = 10;
 const ROUNDS_PER_DAY = 5;
@@ -47,6 +48,19 @@ function freshGameState(): GameState {
   };
 }
 
+const TOKEN_KEY = "clapboard-tokens";
+
+function loadTokens(): number {
+  if (typeof window === "undefined") return 0;
+  const val = localStorage.getItem(TOKEN_KEY);
+  return val ? Math.max(0, parseInt(val, 10) || 0) : 0;
+}
+
+function saveTokens(count: number) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(TOKEN_KEY, String(Math.max(0, count)));
+}
+
 /** Find the first incomplete round for today, or return the last round if all complete. */
 function findCurrentRound(): number {
   for (let r = 0; r < ROUNDS_PER_DAY; r++) {
@@ -64,9 +78,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [tokens, setTokens] = useState(0);
 
   // Load saved state and fetch titles
   useEffect(() => {
+    setTokens(loadTokens());
+
     const round = findCurrentRound();
     setCurrentRound(round);
 
@@ -165,6 +182,11 @@ export default function Home() {
         saveGameState(newState, currentRound);
 
         if (guessResponse.gameOver) {
+          if (guessResponse.solved) {
+            const newTokens = tokens + 1;
+            setTokens(newTokens);
+            saveTokens(newTokens);
+          }
           setTimeout(() => setShowResult(true), 800);
         }
       } catch {
@@ -174,6 +196,37 @@ export default function Home() {
       }
     },
     [gameState, loading, currentRound]
+  );
+
+  const handleBuyHint = useCallback(
+    async (hintType: HintType) => {
+      if (tokens <= 0 || gameState.gameOver || gameState.hints?.[hintType]) return;
+
+      try {
+        const res = await fetch("/api/hint", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ round: currentRound, hintType }),
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const newTokens = tokens - 1;
+        setTokens(newTokens);
+        saveTokens(newTokens);
+
+        const newState: GameState = {
+          ...gameState,
+          hints: { ...gameState.hints, [hintType]: data.value },
+        };
+        setGameState(newState);
+        saveGameState(newState, currentRound);
+      } catch {
+        // silently fail
+      }
+    },
+    [tokens, gameState, currentRound]
   );
 
   const guessCount = gameState.guesses.length;
@@ -199,7 +252,12 @@ export default function Home() {
             alt="Clapboard - Movie Guessing Game"
             className="mx-auto w-[340px] md:w-[450px] h-auto -mb-2"
           />
-          <div className="flex justify-center gap-6 mt-4 text-sm text-[#7a6a55]">
+        </header>
+
+        {/* Frosted glass game container */}
+        <div className="frosted-panel rounded-2xl p-5 md:p-8 mt-4">
+          {/* Stats row */}
+          <div className="flex justify-center gap-6 mb-5 text-lg font-medium text-[#2d1b0e]">
             <span>
               Puzzle <span className="text-[#c4922e] font-bold">#{puzzleNumber}</span>
             </span>
@@ -216,51 +274,84 @@ export default function Home() {
               </span>
             </span>
           </div>
-        </header>
 
-        {/* Guess Input */}
-        <div className="mb-6">
-          <GuessInput
-            onGuess={handleGuess}
-            disabled={gameState.gameOver || loading}
-            titles={titles}
-          />
-          {error && (
-            <p className="text-center text-[#b82040] text-base mt-2 font-serif">
-              {error}
-            </p>
+          {/* Guess Input */}
+          <div className="mb-6">
+            <GuessInput
+              onGuess={handleGuess}
+              disabled={gameState.gameOver || loading}
+              titles={titles}
+            />
+            {error && (
+              <p className="text-center text-[#b82040] text-lg mt-2 font-serif font-semibold">
+                {error}
+              </p>
+            )}
+            {loading && (
+              <p className="text-center text-[#c4922e] text-lg mt-2 animate-pulse font-medium">
+                Checking...
+              </p>
+            )}
+          </div>
+
+          {/* Game Board */}
+          <div className="mb-4">
+            <GameBoard guesses={gameState.guesses} />
+          </div>
+
+          {/* Legend */}
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 mb-5 text-sm text-[#3d2e1e]">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-[#2a7a3a] border border-[#1e6b2e] inline-block" />
+              Exact
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-[#c49520] border border-[#a87e18] inline-block" />
+              Close
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-[#b82040] border border-[#9a1a35] inline-block" />
+              No match
+            </span>
+            <span className="text-[#5a4d3e]">
+              &#x25B2; = answer is higher &nbsp; &#x25BC; = answer is lower
+            </span>
+          </div>
+
+          {/* Hint Shop — only show after first guess */}
+          {!gameState.gameOver && guessCount > 0 && (
+            <div className="mb-4">
+              <HintShop
+                tokens={tokens}
+                hints={gameState.hints || {}}
+                disabled={gameState.gameOver}
+                onBuyHint={handleBuyHint}
+              />
+            </div>
           )}
-          {loading && (
-            <p className="text-center text-[#c4922e] text-base mt-2 animate-pulse">
-              Checking...
-            </p>
-          )}
-        </div>
 
-        {/* Game Board */}
-        <div className="mb-6 bg-white/60 border border-[#d8cdb8] rounded-xl p-4 backdrop-blur-sm">
-          <GameBoard guesses={gameState.guesses} />
-        </div>
-
-        {/* Lifelines */}
-        <div className="mb-6">
-          <Lifelines
-            guessCount={guessCount}
-            tagline={gameState.lifelines.tagline}
-            overview={gameState.lifelines.overview}
-          />
+          {/* Lifelines */}
+          <div className="mb-2">
+            <Lifelines
+              guessCount={guessCount}
+              tagline={gameState.lifelines.tagline}
+              overview={gameState.lifelines.overview}
+            />
+          </div>
         </div>
 
         {/* Ad Banner */}
-        <AdBanner className="mb-6" />
+        <div className="mt-6">
+          <AdBanner className="mb-6" />
+        </div>
 
         {/* How to Play */}
         {guessCount === 0 && (
-          <div className="mt-8 bg-white/60 border border-[#d8cdb8] rounded-xl p-6 backdrop-blur-sm">
+          <div className="mt-6 frosted-panel rounded-2xl p-6">
             <h2 className="text-xl font-serif text-[#c4922e] font-bold mb-3 text-center">
               How to Play
             </h2>
-            <div className="space-y-2 text-[#2d1b0e]/80 text-base">
+            <div className="space-y-2 text-[#2d1b0e] text-lg">
               <p>
                 Guess the mystery movie in <strong className="text-[#c4922e]">10 tries</strong>.
                 After each guess, you&apos;ll see color-coded clues:
@@ -279,7 +370,7 @@ export default function Home() {
                   <span>No match</span>
                 </div>
               </div>
-              <p className="mt-3 text-[#7a6a55]">
+              <p className="mt-3 text-[#3d2e1e]">
                 Lifeline clues unlock at guesses 4 (tagline) and 7 (plot).
                 Arrows (&#x25B2;&#x25BC;) on Year, Rating, and Oscars show if the answer is higher or lower.
               </p>
@@ -287,8 +378,25 @@ export default function Home() {
           </div>
         )}
 
+        {/* DEV: Hard restart */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="text-center mt-6">
+            <button
+              onClick={() => {
+                for (let r = 0; r < ROUNDS_PER_DAY; r++) {
+                  localStorage.removeItem(storageKey(r));
+                }
+                window.location.reload();
+              }}
+              className="px-4 py-2 text-sm bg-[#2d1b0e] text-white rounded-lg opacity-60 hover:opacity-100 transition-opacity"
+            >
+              Dev: Hard Restart (clear all rounds)
+            </button>
+          </div>
+        )}
+
         {/* Footer */}
-        <footer className="text-center mt-8 pb-4 text-[#7a6a55]/60 text-sm">
+        <footer className="text-center mt-8 pb-4 text-[#5a4d3e] text-base">
           <p>Powered by TMDB. Not endorsed or certified by TMDB.</p>
         </footer>
       </div>

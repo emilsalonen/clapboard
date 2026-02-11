@@ -1,4 +1,5 @@
-import type { Movie, FeedbackResult, FeedbackColor, Direction } from "./types";
+import type { Movie, FeedbackResult, FeedbackColor, Direction, DirectorSimilarity } from "./types";
+import { computeDirectorSimilarity } from "./director-similarity";
 
 /**
  * Compare a guessed movie against the target movie.
@@ -43,10 +44,17 @@ function compareYear(
 function compareDirector(
   guess: string,
   target: string
-): { color: FeedbackColor; value: string } {
-  const color: FeedbackColor =
-    guess.toLowerCase() === target.toLowerCase() ? "green" : "red";
-  return { color, value: guess };
+): { color: FeedbackColor; value: string; similarity?: DirectorSimilarity } {
+  if (guess.toLowerCase() === target.toLowerCase()) {
+    return { color: "green", value: guess };
+  }
+
+  const similarity = computeDirectorSimilarity(guess, target);
+  if (similarity && (similarity.label === "Hot" || similarity.label === "Warm")) {
+    return { color: "yellow", value: guess, similarity };
+  }
+
+  return { color: "red", value: guess, similarity: similarity ?? undefined };
 }
 
 function compareGenres(
@@ -102,9 +110,9 @@ function compareRating(
   const diff = Math.abs(guess - target);
   let color: FeedbackColor;
 
-  if (diff <= 0.5) {
+  if (diff === 0) {
     color = "green";
-  } else if (diff <= 1.5) {
+  } else if (diff <= 0.3) {
     color = "yellow";
   } else {
     color = "red";

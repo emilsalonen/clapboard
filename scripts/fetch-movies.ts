@@ -15,7 +15,7 @@ dotenv.config({ path: path.resolve(__dirname, "../.env.local") });
 
 const TMDB_BASE = "https://api.themoviedb.org/3";
 const API_KEY = process.env.TMDB_API_KEY!;
-const TARGET_COUNT = 1000;
+const MIN_VOTE_COUNT = 1000;
 
 interface TMDBMovie {
   id: number;
@@ -23,6 +23,7 @@ interface TMDBMovie {
   release_date: string;
   genre_ids: number[];
   vote_average: number;
+  vote_count: number;
   overview: string;
   poster_path: string | null;
   popularity: number;
@@ -34,6 +35,7 @@ interface TMDBMovieDetails {
   release_date: string;
   genres: { id: number; name: string }[];
   vote_average: number;
+  vote_count: number;
   overview: string;
   poster_path: string | null;
   tagline: string;
@@ -65,6 +67,7 @@ interface MovieData {
   overview: string;
   posterPath: string;
   voteAverage: number;
+  voteCount: number;
   oscarWins: number;
   watchProviders: Record<string, { link?: string; providers: { name: string; logoPath: string }[] }>;
 }
@@ -92,6 +95,23 @@ async function fetchMovieList(
     console.log(`Fetching ${label} page ${page}/${pages}...`);
     const data = await fetchJSON<{ results: TMDBMovie[] }>(
       `${TMDB_BASE}/movie/${endpoint}?api_key=${API_KEY}&language=en-US&page=${page}`
+    );
+    allMovies.push(...data.results);
+    await sleep(250);
+  }
+
+  return allMovies;
+}
+
+async function fetchDiscoverMovies(
+  pages: number
+): Promise<TMDBMovie[]> {
+  const allMovies: TMDBMovie[] = [];
+
+  for (let page = 1; page <= pages; page++) {
+    console.log(`Fetching discover page ${page}/${pages}...`);
+    const data = await fetchJSON<{ results: TMDBMovie[] }>(
+      `${TMDB_BASE}/discover/movie?api_key=${API_KEY}&sort_by=vote_count.desc&vote_count.gte=${MIN_VOTE_COUNT}&language=en-US&page=${page}`
     );
     allMovies.push(...data.results);
     await sleep(250);
@@ -145,6 +165,7 @@ async function fetchMovieDetails(movieId: number): Promise<MovieData | null> {
       overview: details.overview,
       posterPath: details.poster_path || "",
       voteAverage: Math.round(details.vote_average * 10) / 10,
+      voteCount: details.vote_count,
       oscarWins: 0,
       watchProviders: providers,
     };
@@ -171,21 +192,30 @@ async function main() {
   console.log("\n=== Fetching now-playing movies ===\n");
   const nowPlaying = await fetchMovieList("now_playing", "now-playing", 5);
 
+  console.log("\n=== Fetching discover movies (by vote count) ===\n");
+  const discover = await fetchDiscoverMovies(50);
+
   // Deduplicate by ID, prioritizing top-rated first, then popular
   const seenIds = new Set<number>();
-  const allMovieIds: number[] = [];
+  const allMovies: TMDBMovie[] = [];
 
-  for (const movie of [...topRated, ...popular, ...nowPlaying]) {
+  for (const movie of [...topRated, ...popular, ...nowPlaying, ...discover]) {
     if (!seenIds.has(movie.id)) {
       seenIds.add(movie.id);
-      allMovieIds.push(movie.id);
+      allMovies.push(movie);
     }
   }
 
-  // Cap at target count
-  const movieIds = allMovieIds.slice(0, TARGET_COUNT);
+  // Filter out obscure movies with too few votes
+  const beforeFilterCount = allMovies.length;
+  const filteredMovies = allMovies.filter((m) => m.vote_count >= MIN_VOTE_COUNT);
+  const filteredOutCount = beforeFilterCount - filteredMovies.length;
 
-  console.log(`\nCombined ${movieIds.length} unique movie IDs (from ${topRated.length} top-rated + ${popular.length} popular + ${nowPlaying.length} now-playing).`);
+  const movieIds = filteredMovies.map((m) => m.id);
+
+  console.log(`\nCombined ${beforeFilterCount} unique movies (from ${topRated.length} top-rated + ${popular.length} popular + ${nowPlaying.length} now-playing + ${discover.length} discover).`);
+  console.log(`Filtered out ${filteredOutCount} movies with fewer than ${MIN_VOTE_COUNT} votes.`);
+  console.log(`Proceeding with ${movieIds.length} movies.`);
   console.log("Now fetching details...\n");
 
   const movies: MovieData[] = [];
@@ -216,8 +246,11 @@ async function main() {
   // Print some stats
   const ratings = movies.map((m) => m.voteAverage);
   const years = movies.map((m) => m.year);
+  const votes = movies.map((m) => m.voteCount);
   console.log(`Rating range: ${Math.min(...ratings)} - ${Math.max(...ratings)}`);
   console.log(`Year range: ${Math.min(...years)} - ${Math.max(...years)}`);
+  console.log(`Vote count range: ${Math.min(...votes)} - ${Math.max(...votes)}`);
+  console.log(`Filtered out ${filteredOutCount} obscure movies (< ${MIN_VOTE_COUNT} votes)`);
 }
 
 main().catch(console.error);

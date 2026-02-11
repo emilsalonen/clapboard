@@ -75,6 +75,17 @@ body {
   );
 }
 
+/* Frosted glass panel */
+.frosted-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(216, 205, 184, 0.6);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
 /* Film strip border decoration */
 .film-strip-border {
   position: relative;
@@ -107,7 +118,74 @@ body {
   bottom: -8px;
 }
 
-/* Fade-in animation for guess rows */
+/* Row slide-in animation */
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-row-in {
+  animation: rowIn 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Chip fade-in for non-green chips */
+@keyframes chipIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-chip-in {
+  animation: chipIn 0.35s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Green chip pop animation */
+@keyframes chipPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-chip-pop {
+  animation: chipPop 0.5s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Accordion open */
+@keyframes accordionOpen {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 400px;
+  }
+}
+
+.animate-accordion-open {
+  animation: accordionOpen 0.3s ease-out;
+}
+
+/* Legacy fade-in (kept for other components) */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -123,9 +201,50 @@ body {
   animation: fadeIn 0.4s ease-out;
 }
 
-/* Custom scrollbar */
+/* Tooltip styles */
+.tooltip-trigger .tooltip-text {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #2d1b0e;
+  color: #faf6f0;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  text-transform: none;
+  letter-spacing: 0;
+  text-align: left;
+  z-index: 50;
+  pointer-events: none;
+  transition: opacity 0.15s, visibility 0.15s;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tooltip-trigger .tooltip-text::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: #2d1b0e;
+}
+
+.tooltip-trigger:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Custom scrollbar — vertical only */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 0px;
 }
 
 ::-webkit-scrollbar-track {
@@ -153,13 +272,7 @@ body {
   outline-offset: 2px;
 }
 
-/* Table responsiveness */
-@media (max-width: 640px) {
-  table {
-    font-size: 0.8rem;
-  }
-
-  th, td {
-    padding: 2px;
-  }
+/* Table header alignment */
+th .inline-flex {
+  justify-content: center;
 }
