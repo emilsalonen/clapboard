@@ -144,7 +144,7 @@ function TableRow({ guess, isNew }: { guess: { movie: string; feedback: Feedback
 
 /* ─── Mobile accordion card ─── */
 function AccordionCard({ guess, index, isNew }: { guess: { movie: string; feedback: FeedbackResult }; index: number; isNew: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const f = guess.feedback;
 
   // Overall color: green if solved, yellow if any yellow, else red

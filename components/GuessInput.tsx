@@ -86,12 +86,12 @@ export default function GuessInput({ onGuess, disabled, titles }: GuessInputProp
           onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
           placeholder={disabled ? "Game over!" : "Type a movie title..."}
           disabled={disabled}
-          className="flex-1 px-4 py-3 bg-white text-[#2d1b0e] placeholder-[#a09080] border-2 border-[#d8cdb8] rounded-lg font-sans text-lg focus:outline-none focus:border-[#c4922e] focus:ring-2 focus:ring-[#c4922e]/20 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="min-w-0 flex-1 px-4 py-3 bg-white text-[#2d1b0e] placeholder-[#a09080] border-2 border-[#d8cdb8] rounded-lg font-sans text-lg focus:outline-none focus:border-[#c4922e] focus:ring-2 focus:ring-[#c4922e]/20 disabled:opacity-50 disabled:cursor-not-allowed"
         />
         <button
           onClick={() => handleSubmit()}
           disabled={disabled || !value.trim()}
-          className="px-6 py-3 bg-[#c4922e] text-white font-bold rounded-lg border-2 border-[#a87e18] hover:bg-[#d4a23e] active:bg-[#b4821e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg"
+          className="flex-shrink-0 px-6 py-3 bg-[#c4922e] text-white font-bold rounded-lg border-2 border-[#a87e18] hover:bg-[#d4a23e] active:bg-[#b4821e] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-lg"
         >
           Guess
         </button>
